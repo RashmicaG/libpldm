@@ -8,7 +8,7 @@ project('libpldm', ['c','cpp'],
       'tests=' + (meson.is_subproject() ? 'disabled' : 'enabled'),
     ],
     version: '0.1.0',
-    meson_version: '>=0.63.0',
+    meson_version: '>=0.62.0',
 )
 
 add_project_arguments('-D_DEFAULT_SOURCE',language:['c'])
