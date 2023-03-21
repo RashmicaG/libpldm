@@ -61,22 +61,26 @@ static struct flock *pldm_requester_init_flock(void)
 	return flock;
 }
 
-static struct pldm_requester_id_file *
-pldm_requester_init_id_file(struct pldm_requester *ctx, pldm_tid_t tid)
+#include <errno.h>
+static struct pldm_requester_id_file *pldm_requester_init_id_file(struct pldm_requester *ctx, pldm_tid_t tid)
 {
 	int size = strlen(PLDM_INSTANCE_ID_FILE_PREFIX) + 4;
 	char *file_name = malloc(size);
 	if (!file_name) {
 		return NULL;
 	}
-	snprintf(file_name, size, "%s%d", PLDM_INSTANCE_ID_FILE_PREFIX, tid);
+   	snprintf(file_name, size,"%s%d", PLDM_INSTANCE_ID_FILE_PREFIX, tid);
+	
+	printf("filename : %s\n", file_name);
 
 	if (mkdir(PLDM_INSTANCE_ID_FILE_PATH, 0755) == -1 && errno != EEXIST) {
+	printf("mkdir failed with not EEXIST : %d\n", errno);
 	}
 
 	if ((ctx->id_files[tid].fd =
 		 open(file_name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR)) == -1) {
 		free(file_name);
+		printf("open failed %d\n", errno);
 		return NULL;
 	}
 	ctx->id_files[tid].last_instance_id = -1;
@@ -168,6 +172,7 @@ pldm_requester_allocate_instance_id(struct pldm_requester *ctx, pldm_tid_t tid,
 	struct pldm_requester_id_file *id_file =
 	    pldm_requester_get_id_file(ctx, tid);
 	if (!id_file) {
+		printf("no id failed\n");
 		return PLDM_REQUESTER_INSTANCE_ID_FAIL;
 	}
 
@@ -184,6 +189,7 @@ pldm_requester_allocate_instance_id(struct pldm_requester *ctx, pldm_tid_t tid,
 	if (*instance_id != idx) {
 		return PLDM_REQUESTER_INSTANCE_IDS_EXHAUSTED;
 	}
+	printf("got instance id  %d\n", *instance_id);
 	id_file->last_instance_id = idx;
 	return PLDM_REQUESTER_SUCCESS;
 }
@@ -245,6 +251,7 @@ pldm_requester_rc_t pldm_open()
 
 	open_transport = demux;
 
+	fprintf(stderr, "pldm_open fd %d\n", fd);
 	return fd;
 }
 
@@ -301,6 +308,8 @@ pldm_requester_rc_t pldm_recv(mctp_eid_t eid, int mctp_fd,
 	    pldm_recv_any(eid, mctp_fd, pldm_resp_msg, resp_msg_len);
 	struct pldm_msg_hdr *hdr = (struct pldm_msg_hdr *)(*pldm_resp_msg);
 	if (hdr->instance_id != instance_id) {
+		fprintf(stderr, "expected instance id:%d got:%d", instance_id,
+			hdr->instance_id);
 		free(*pldm_resp_msg);
 		*pldm_resp_msg = NULL;
 		return PLDM_REQUESTER_INSTANCE_ID_MISMATCH;
