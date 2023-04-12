@@ -38,5 +38,8 @@ if get_option('requester-api').enabled()
     'transport/transport.h',
     'transport/af_mctp.h',
     )
+   libpldm_instance_db_headers += files(
+    'instance_db/instance_db.h',
+    )
 endif
 

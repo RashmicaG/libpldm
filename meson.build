@@ -19,6 +19,7 @@ subdir('src')
 libpldm_include_dir = ['include']
 libpldm_headers = files()
 libpldm_transport_headers = files()
+libpldm_instance_db_headers = files()
 
 subdir('include/libpldm')
 
@@ -39,6 +40,11 @@ install_headers(
 install_headers(
   libpldm_transport_headers,
   subdir:'libpldm/transport'
+  )
+
+install_headers(
+  libpldm_instance_db_headers,
+  subdir:'libpldm/instance_db'
   )
 
 libpldm_dep = declare_dependency(

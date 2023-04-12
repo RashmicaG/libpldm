@@ -1,5 +1,6 @@
 #include "libpldm/requester/pldm.h"
 #include "../transport/transport.h"
+#include "libpldm/instance_db/instance_db.h"
 #include "base.h"
 
 #include <bits/types/struct_iovec.h>
@@ -15,23 +16,6 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#define PLDM_INSTANCE_ID_FILE_PATH "/var/lib/libpldm/"
-#define PLDM_INSTANCE_ID_FILE_PREFIX                                           \
-	PLDM_INSTANCE_ID_FILE_PATH "pldm_instance_ids_tid_"
-
-/**
- * @brief struct that contains the required elements to do range locking on a
- *	  file that are unique to a file
- *
- * @var fd - file descriptor to the id file
- * @var last_instance_id - the last allocated instance id. This is to make sure
- *	a new request has a different id from the previous request
- * @var setup - indicates if the fd is ready to use
- */
-struct pldm_requester_id_file {
-	int fd;
-	int last_instance_id;
-};
 
 /**
  * @brief PLDM requester struct
@@ -42,88 +26,22 @@ struct pldm_requester_id_file {
  */
 struct pldm_requester {
 	struct pldm_transport *transport;
-	struct pldm_requester_id_file id_files[PLDM_MAX_TIDS];
-	struct flock *flock;
+	struct pldm_instance_db *idb;
 };
 
-static struct flock *pldm_requester_init_flock(void)
+pldm_requester_rc_t pldm_requester_init(struct pldm_requester *ctx, struct pldm_instance_db *idb)
 {
-	struct flock *flock = malloc(sizeof(struct flock));
-	if (flock == NULL) {
-		return NULL;
-	}
-	flock->l_type = F_WRLCK;
-	flock->l_whence = SEEK_SET;
-	flock->l_start = 0;
-	flock->l_len = 1;
-	flock->l_pid = getpid();
-
-	return flock;
-}
-
-#include <errno.h>
-static struct pldm_requester_id_file *pldm_requester_init_id_file(struct pldm_requester *ctx, pldm_tid_t tid)
-{
-	int size = strlen(PLDM_INSTANCE_ID_FILE_PREFIX) + 4;
-	char *file_name = malloc(size);
-	if (!file_name) {
-		return NULL;
-	}
-   	snprintf(file_name, size,"%s%d", PLDM_INSTANCE_ID_FILE_PREFIX, tid);
-	
-	printf("filename : %s\n", file_name);
-
-	if (mkdir(PLDM_INSTANCE_ID_FILE_PATH, 0755) == -1 && errno != EEXIST) {
-	printf("mkdir failed with not EEXIST : %d\n", errno);
+	if (!idb) {
+		return PLDM_REQUESTER_INVALID_SETUP;
 	}
 
-	if ((ctx->id_files[tid].fd =
-		 open(file_name, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR)) == -1) {
-		free(file_name);
-		printf("open failed %d\n", errno);
-		return NULL;
-	}
-	ctx->id_files[tid].last_instance_id = -1;
-
-	free(file_name);
-	return &(ctx->id_files[tid]);
-}
-
-static struct pldm_requester_id_file *
-pldm_requester_get_id_file(struct pldm_requester *ctx, pldm_tid_t tid)
-{
-	if (ctx->id_files[tid].fd >= 0) {
-		return &(ctx->id_files[tid]);
-	}
-
-	return pldm_requester_init_id_file(ctx, tid);
-}
-
-static void pldm_requester_close_id_fds(struct pldm_requester *ctx)
-{
-	for (int i = 0; i < PLDM_MAX_TIDS; i++) {
-		if (ctx->id_files[i].fd >= 0) {
-			close(ctx->id_files[i].fd);
-		}
-	}
-}
-
-struct pldm_requester *pldm_requester_init(void)
-{
-	struct pldm_requester *ctx = calloc(sizeof(struct pldm_requester), 1);
+	ctx = calloc(sizeof(struct pldm_requester), 1);
 	if (!ctx) {
-		return NULL;
+	        return PLDM_REQUESTER_SETUP_FAIL;
 	}
-	ctx->flock = pldm_requester_init_flock();
-	for (int i = 0; i < PLDM_MAX_TIDS; i++) {
-		ctx->id_files[i].fd = -1;
-	}
-	if (!ctx->flock) {
-		free(ctx);
-		return NULL;
-	}
-	return ctx;
+	return PLDM_REQUESTER_SUCCESS;
 }
+
 
 pldm_requester_rc_t pldm_requester_destroy(struct pldm_requester *ctx)
 {
@@ -131,8 +49,6 @@ pldm_requester_rc_t pldm_requester_destroy(struct pldm_requester *ctx)
 	if (ctx->transport) {
 		return PLDM_REQUESTER_INVALID_SETUP;
 	}
-	pldm_requester_close_id_fds(ctx);
-	free(ctx->flock);
 	free(ctx);
 	return PLDM_REQUESTER_SUCCESS;
 }
@@ -161,60 +77,28 @@ pldm_requester_unregister_transports(struct pldm_requester *ctx)
 }
 
 pldm_requester_rc_t
-pldm_requester_allocate_instance_id(struct pldm_requester *ctx, pldm_tid_t tid,
-				    uint8_t *instance_id)
+pldm_requester_register_instance_db(struct pldm_requester *ctx,
+				  struct pldm_instance_db *idb)
 {
-
-	if (!ctx || !ctx->flock || !instance_id) {
+	if (!ctx || ctx->idb != NULL || !idb) {
 		return PLDM_REQUESTER_INVALID_SETUP;
 	}
+	ctx->idb = idb;
 
-	struct pldm_requester_id_file *id_file =
-	    pldm_requester_get_id_file(ctx, tid);
-	if (!id_file) {
-		printf("no id failed\n");
-		return PLDM_REQUESTER_INSTANCE_ID_FAIL;
-	}
-
-	ctx->flock->l_type = F_WRLCK;
-	int idx = (id_file->last_instance_id + 1) % 32;
-	while (idx != id_file->last_instance_id) {
-		ctx->flock->l_start = idx;
-		if (fcntl(id_file->fd, F_SETLK, ctx->flock) == 0) {
-			*instance_id = idx;
-			break;
-		}
-		idx = (idx + 1) % 32;
-	}
-	if (*instance_id != idx) {
-		return PLDM_REQUESTER_INSTANCE_IDS_EXHAUSTED;
-	}
-	printf("got instance id  %d\n", *instance_id);
-	id_file->last_instance_id = idx;
 	return PLDM_REQUESTER_SUCCESS;
 }
 
-pldm_requester_rc_t pldm_requester_free_instance_id(struct pldm_requester *ctx,
-						    pldm_tid_t tid,
-						    uint8_t instance_id)
+pldm_requester_rc_t pldm_requester_init_default(struct pldm_requester *ctx)
 {
-	if (!ctx || !ctx->flock) {
-		return PLDM_REQUESTER_INVALID_SETUP;
+	struct pldm_instance_db *idb = NULL;
+	int rc;
+	
+	rc = pldm_instance_db_init_default(idb);
+	if (rc < 0) {
+		return rc;
 	}
 
-	struct pldm_requester_id_file *id_file =
-	    pldm_requester_get_id_file(ctx, tid);
-	if (!id_file) {
-		return PLDM_REQUESTER_INSTANCE_ID_FAIL;
-	}
-	ctx->flock->l_type = F_UNLCK;
-	ctx->flock->l_start = instance_id;
-
-	if (fcntl(id_file->fd, F_SETLK, ctx->flock) == -1) {
-		return PLDM_REQUESTER_INSTANCE_ID_FAIL;
-	}
-
-	return PLDM_REQUESTER_SUCCESS;
+	return pldm_requester_init(ctx, idb);
 }
 
 /* Temporary for old api */
