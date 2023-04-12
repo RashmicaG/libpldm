@@ -29,7 +29,7 @@ typedef enum pldm_requester_error_codes {
 	PLDM_REQUESTER_INSTANCE_IDS_EXHAUSTED = -13,
 } pldm_requester_rc_t;
 
-/* ------ Old API ---- being deprecated */
+/* ------ Old API ---- deprecated */
 /**
  * @brief Connect to the MCTP socket and provide an fd to it. The fd can be
  *        used to pass as input to other APIs below, or can be polled.
@@ -160,11 +160,11 @@ pldm_requester_rc_t
 pldm_requester_unregister_transports(struct pldm_requester *ctx);
 
 /**
- * @brief Allocates an instance id for a destination TID
+ * @brief Allocates an instance ID for a destination TID
  *
  * @param[in] ctx - pldm requester instance
  * @param[in] tid - PLDM TID
- * @param[in] instance_id - caller owned pointer to a PLDM instance ID. Return
+ * @param[in] instance_id - caller owned pointer to a PLDM instance ID object. Return
  * 	      PLDM_REQUESTER_INVALID_SETUP if this is NULL. On success, this
  * 	      points to an instance ID to use for a PLDM request message. If
  * 	      there are no instance IDs available,

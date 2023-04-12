@@ -69,6 +69,7 @@ int pldm_transport_mctp_demux_init_pollfd(struct pldm_transport *t,
 	return 0;
 }
 
+#include <stdio.h>
 static int
 pldm_transport_mctp_demux_get_eid(struct pldm_transport_mctp_demux *ctx,
 				  pldm_tid_t tid, mctp_eid_t *eid)
@@ -81,12 +82,18 @@ pldm_transport_mctp_demux_get_eid(struct pldm_transport_mctp_demux *ctx,
 		}
 	}
 	*eid = -1;
+		printf("no match found. we have tid:%d.\n", tid);
+	for (i = 0; i < MCTP_MAX_NUM_EID; i++) {
+		printf("at index:%d we have tid:%d\n", i, ctx->tid_eid_map[i]);
+	}
+	printf("\n");
 	return -1;
 }
 
 int pldm_transport_mctp_demux_map_tid(struct pldm_transport_mctp_demux *ctx,
 				      pldm_tid_t tid, mctp_eid_t eid)
 {
+	printf("mapping eid:%d to tid:%d\n", eid, tid);
 	ctx->tid_eid_map[eid] = tid;
 
 	return 0;
@@ -96,6 +103,7 @@ int pldm_transport_mctp_demux_unmap_tid(struct pldm_transport_mctp_demux *ctx,
 					__attribute__((unused)) pldm_tid_t tid,
 					mctp_eid_t eid)
 {
+	printf("unmapping eid:%d and tid:%d\n", eid, tid);
 	ctx->tid_eid_map[eid] = 0;
 
 	return 0;
@@ -158,7 +166,6 @@ pldm_transport_mctp_demux_recv(struct pldm_transport *t, pldm_tid_t tid,
 	*resp_msg_len = pldm_len;
 	return PLDM_REQUESTER_SUCCESS;
 }
-
 static pldm_requester_rc_t
 pldm_transport_mctp_demux_send(struct pldm_transport *t, pldm_tid_t tid,
 			       const void *pldm_req_msg, size_t req_msg_len)
@@ -166,6 +173,7 @@ pldm_transport_mctp_demux_send(struct pldm_transport *t, pldm_tid_t tid,
 	struct pldm_transport_mctp_demux *demux = transport_to_demux(t);
 	mctp_eid_t eid = 0;
 	if (pldm_transport_mctp_demux_get_eid(demux, tid, &eid)) {
+		printf("get eid failed. tid:%d \n", tid);
 		return PLDM_REQUESTER_SEND_FAIL;
 	}
 
