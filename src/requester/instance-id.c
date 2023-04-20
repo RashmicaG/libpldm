@@ -65,11 +65,9 @@ int pldm_instance_db_destroy(struct pldm_instance_db *ctx)
 	if (!ctx) {
 		return 0;
 	}
-	int rc = close(ctx->lock_db_fd);
-	/* On Linux and most implementations, the file descriptor is guaranteed
-	 * to be closed even if there was an error */
+	close(ctx->lock_db_fd);
 	free(ctx);
-	return rc;
+	return 0;
 }
 
 int pldm_instance_id_alloc(struct pldm_instance_db *ctx, pldm_tid_t tid,
@@ -109,7 +107,10 @@ int pldm_instance_id_alloc(struct pldm_instance_db *ctx, pldm_tid_t tid,
 		flop.l_start = loff;
 		rc = fcntl(ctx->lock_db_fd, F_OFD_SETLK, &flop);
 		if (rc < 0) {
-			return -errno;
+			if (errno == EAGAIN || errno == EINTR) {
+				return -EAGAIN;
+			}
+			return -EPROTO;
 		}
 
 		/*
@@ -128,7 +129,10 @@ int pldm_instance_id_alloc(struct pldm_instance_db *ctx, pldm_tid_t tid,
 		flop.l_start = loff;
 		rc = fcntl(ctx->lock_db_fd, F_OFD_GETLK, &flop);
 		if (rc < 0) {
-			return -errno;
+			if (errno == EAGAIN || errno == EINTR) {
+				return -EAGAIN;
+			}
+			return -EPROTO;
 		}
 
 		/* F_UNLCK is the type of the lock if we could successfully
@@ -159,15 +163,14 @@ int pldm_instance_id_free(struct pldm_instance_db *ctx, pldm_tid_t tid,
 	struct flock flop;
 	int rc;
 
-	if (ctx->prev[tid] != iid) {
-		return -EINVAL;
-	}
-
 	flop = cflu;
 	flop.l_start = tid * PLDM_INST_ID_MAX + iid;
 	rc = fcntl(ctx->lock_db_fd, F_OFD_SETLK, &flop);
 	if (rc < 0) {
-		return -errno;
+		if (errno == EAGAIN || errno == EINTR) {
+			return -EAGAIN;
+		}
+		return -EPROTO;
 	}
 
 	return 0;

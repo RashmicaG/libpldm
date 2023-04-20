@@ -19,8 +19,8 @@ struct pldm_instance_db;
  * 		     database object on success.
  * @param[in] dbpath - the path to the instance ID database file to use
  *
- * @return int - Returns 0 on success. Returns EINVAL if **ctx is NULL or *ctx
- * 		 is not NULL. Returns ENOMEM if memory couldn't be allocated.
+ * @return int - Returns 0 on success. Returns -EINVAL if ctx is NULL or *ctx
+ * 		 is not NULL. Returns -ENOMEM if memory couldn't be allocated.
  *		 Returns the errno if the database couldn't be opened.
  * */
 int pldm_instance_db_init(struct pldm_instance_db **ctx, const char *dbpath);
@@ -32,8 +32,8 @@ int pldm_instance_db_init(struct pldm_instance_db **ctx, const char *dbpath);
  * @param[out] ctx - *ctx will point to a PLDM instance ID database object on
  * 	       success.
  *
- * @return int - Returns 0 on success. Returns EINVAL if **ctx is NULL or *ctx
- * 		 is not NULL. Returns ENOMEM if memory couldn't be allocated.
+ * @return int - Returns 0 on success. Returns -EINVAL if ctx is NULL or *ctx
+ * 		 is not NULL. Returns -ENOMEM if memory couldn't be allocated.
  * 		 Returns the errno if the database couldn't be opened.
  * */
 int pldm_instance_db_init_default(struct pldm_instance_db **ctx);
@@ -43,9 +43,8 @@ int pldm_instance_db_init_default(struct pldm_instance_db **ctx);
  *
  * @param[in] ctx - PLDM instance ID database object
  *
- * @return int - Returns 0 on success or if the *ctx is NULL. If close() returns
- * 		 an error we return that error code but the ctx is still
- * 		 destroyed.
+ * @return int - Returns 0 on success or if *ctx is NULL. No specific errors are
+ *		 specified.
  * */
 int pldm_instance_db_destroy(struct pldm_instance_db *ctx);
 
@@ -60,10 +59,10 @@ int pldm_instance_db_destroy(struct pldm_instance_db *ctx);
  * 	      message.
  *
  * @return int - Returns 0 on success if we were able to allocate an instance
- * 		 ID. Returns EINVAL if the iid pointer is NULL. Returns EAGAIN
- *		 if there are no instance IDs available. Returns EPROTO if
- *		 something has gone wrong with the allocation. Returns the errno
- *		 if fcntl() returned an error.
+ * 		 ID. Returns -EINVAL if the iid pointer is NULL. Returns -EAGAIN
+ *		 if a successive call may succeed. Returns -EPROTO if the
+ *		 operation has entered an undefined state. has gone wrong with
+ *the allocation.
  */
 int pldm_instance_id_alloc(struct pldm_instance_db *ctx, pldm_tid_t tid,
 			   pldm_instance_id_t *iid);
@@ -76,10 +75,11 @@ int pldm_instance_id_alloc(struct pldm_instance_db *ctx, pldm_tid_t tid,
  * @param[in] iid - If this instance ID was not previously allocated by
  * 	      pldm_instance_id_alloc then EINVAL is returned.
  *
- * @return int - Returns 0 on success. Returns EINVAL if the iid supplied was
+ * @return int - Returns 0 on success. Returns -EINVAL if the iid supplied was
  * 		 not previously allocated by pldm_instance_id_alloc or it has
- * 		 previously been freed. Returns the errno if fcntl() returned an
- * 		 error.
+ * 		 previously been freed. Returns -EAGAIN if a successive call may
+ * 		 succeed. Returns -EPROTO if the operation has entered an
+ *		 undefined state.
  */
 int pldm_instance_id_free(struct pldm_instance_db *ctx, pldm_tid_t tid,
 			  pldm_instance_id_t iid);
