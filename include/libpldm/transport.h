@@ -54,8 +54,7 @@ pldm_requester_rc_t pldm_transport_send_msg(struct pldm_transport *transport,
 					    size_t msg_len);
 
 /**
- * @brief Asynchronously get a PLDM response message for the given TID
- * 	  regardless of instance ID. Control is immediately returned to the
+ * @brief Asynchronously get a PLDM message. Control is immediately returned to the
  * 	  caller.
  *
  * @pre The pldm transport instance must be initialised; otherwise,
@@ -64,23 +63,22 @@ pldm_requester_rc_t pldm_transport_send_msg(struct pldm_transport *transport,
  * 	up.
  *
  * @param[in] ctx - pldm transport instance
- * @param[in] tid - destination PLDM TID
- * @param[out] pldm_resp_msg - *pldm_resp_msg will point to PLDM response msg if
+ * @param[out] tid - source PLDM TID
+ * @param[out] pldm_msg - *pldm_msg will point to the received PLDM msg if
  * 	       return code is PLDM_REQUESTER_SUCCESS; otherwise, NULL. On
  * 	       success this function allocates memory, caller to
- * 	       free(*pldm_resp_msg).
- * @param[out] resp_msg_len - caller owned pointer that will be made to point to
- *             the size of the PLDM response msg. If NULL,
+ * 	       free(*pldm_msg).
+ * @param[out] msg_len - caller owned pointer that will be made to point to
+ *             the size of the PLDM msg. If NULL,
  * 	       PLDM_REQUESTER_INVALID_SETUP is returned.
  *
  * @return pldm_requester_rc_t (errno may be set). Failure is returned if no
- * 	   PLDM response messages are available.
+ * 	   PLDM messages are available.
  *
  */
 pldm_requester_rc_t pldm_transport_recv_msg(struct pldm_transport *transport,
-					    pldm_tid_t tid,
-					    void **pldm_resp_msg,
-					    size_t *resp_msg_len);
+					    pldm_tid_t *tid, void **pldm_msg,
+					    size_t *msg_len);
 
 /**
  * @brief Synchronously send a PLDM request and receive the response. Control is
