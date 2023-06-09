@@ -60,6 +60,7 @@ pldm_requester_rc_t pldm_open(void)
 /* This macro does the setup and teardown required for the old API to use the
  * new API. Since the setup/teardown logic is the same for all four send/recv
  * functions, it makes sense to only define it once. */
+// should we make tid = eid here??
 #define PLDM_REQ_FN(eid, fd, fn, rc, ...)                                        \
 	do {                                                                     \
 		struct pldm_transport_mctp_demux *demux;                         \
@@ -99,8 +100,41 @@ pldm_requester_rc_t pldm_recv_any(mctp_eid_t eid, int mctp_fd,
 				  uint8_t **pldm_resp_msg, size_t *resp_msg_len)
 {
 	pldm_requester_rc_t rc = 0;
-	PLDM_REQ_FN(eid, mctp_fd, pldm_transport_recv_msg, rc,
-		    (void **)pldm_resp_msg, resp_msg_len);
+
+	//	PLDM_REQ_FN(eid, mctp_fd, pldm_transport_recv_msg, rc,
+	//		    (void **)pldm_resp_msg, resp_msg_len);
+
+	struct pldm_transport_mctp_demux *demux;
+	bool using_open_transport = false;
+	pldm_tid_t tid = 1;
+	struct pldm_transport *ctx;
+	/* The fd can be for a socket we opened or one the consumer
+	 * opened. */
+	if (open_transport &&
+	    mctp_fd ==
+		pldm_transport_mctp_demux_get_socket_fd(open_transport)) {
+		using_open_transport = true;
+		demux = open_transport;
+	} else {
+		demux = pldm_transport_mctp_demux_init_with_fd(mctp_fd);
+		if (!demux) {
+			rc = PLDM_REQUESTER_OPEN_FAIL;
+			goto transport_out;
+		}
+	}
+	ctx = pldm_transport_mctp_demux_core(demux);
+	rc = pldm_transport_mctp_demux_map_tid(demux, tid, eid);
+	if (rc) {
+		rc = PLDM_REQUESTER_OPEN_FAIL;
+		goto transport_out;
+	}
+	rc = pldm_transport_recv_msg(ctx, &tid, (void **)pldm_resp_msg,
+				     resp_msg_len);
+transport_out:
+	if (!using_open_transport) {
+		pldm_transport_mctp_demux_destroy(demux);
+	}
+
 	struct pldm_msg_hdr *hdr = (struct pldm_msg_hdr *)(*pldm_resp_msg);
 	if (rc != PLDM_REQUESTER_SUCCESS) {
 		return rc;
