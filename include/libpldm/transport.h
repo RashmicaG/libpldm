@@ -39,11 +39,10 @@ pldm_requester_rc_t pldm_transport_poll(struct pldm_transport *transport,
  *
  * @param[in] ctx - pldm transport instance
  * @param[in] tid - destination PLDM TID
- * @param[in] pldm_req_msg - caller owned pointer to PLDM request msg or async
- *            notification. If this is NULL, PLDM_REQUESTER_INVALID_SETUP is
- * 	      returned.
- * @param[in] req_msg_len - size of PLDM request msg. If this is less than the
- * 	      minimum size of a PLDM msg PLDM_REQUESTER_NOT_REQ_MSG is returned.
+ * @param[in] pldm_msg - caller owned pointer to PLDM msg. If this is NULL,
+ * 	      PLDM_REQUESTER_INVALID_SETUP is returned.
+ * @param[in] msg_len - size of PLDM msg. If this is less than the minimum size
+ * 	      of a PLDM msg PLDM_REQUESTER_NOT_REQ_MSG is returned.
  * 	      Otherwise, if this is not the correct length of the PLDM msg,
  * 	      behaviour is undefined.
  *
@@ -51,8 +50,8 @@ pldm_requester_rc_t pldm_transport_poll(struct pldm_transport *transport,
  */
 pldm_requester_rc_t pldm_transport_send_msg(struct pldm_transport *transport,
 					    pldm_tid_t tid,
-					    const void *pldm_req_msg,
-					    size_t req_msg_len);
+					    const void *pldm_msg,
+					    size_t msg_len);
 
 /**
  * @brief Asynchronously get a PLDM response message for the given TID

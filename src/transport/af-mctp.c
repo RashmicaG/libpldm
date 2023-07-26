@@ -106,8 +106,8 @@ static pldm_requester_rc_t pldm_transport_af_mctp_recv(struct pldm_transport *t,
 
 static pldm_requester_rc_t pldm_transport_af_mctp_send(struct pldm_transport *t,
 						       pldm_tid_t tid,
-						       const void *pldm_req_msg,
-						       size_t req_msg_len)
+						       const void *pldm_msg,
+						       size_t msg_len)
 {
 	struct pldm_transport_af_mctp *af_mctp = transport_to_af_mctp(t);
 	mctp_eid_t eid = 0;
@@ -121,13 +121,13 @@ static pldm_requester_rc_t pldm_transport_af_mctp_send(struct pldm_transport *t,
 	addr.smctp_type = MCTP_MSG_TYPE_PLDM;
 	addr.smctp_tag = MCTP_TAG_OWNER;
 
-	if (req_msg_len > INT_MAX ||
+	if (msg_len > INT_MAX ||
 	    pldm_socket_sndbuf_accomodate(&(af_mctp->socket_send_buf),
-					  (int)req_msg_len)) {
+					  (int)msg_len)) {
 		return PLDM_REQUESTER_SEND_FAIL;
 	}
 
-	ssize_t rc = sendto(af_mctp->socket, pldm_req_msg, req_msg_len, 0,
+	ssize_t rc = sendto(af_mctp->socket, pldm_msg, msg_len, 0,
 			    (struct sockaddr *)&addr, sizeof(addr));
 	if (rc == -1) {
 		return PLDM_REQUESTER_SEND_FAIL;
